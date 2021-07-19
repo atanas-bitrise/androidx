@@ -1,0 +1,738 @@
+---
+format_version: '11'
+default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
+project_type: android
+trigger_map:
+- push_branch: "*"
+  workflow: ftl-room-testapp
+- pull_request_source_branch: "*"
+  workflow: ftl-room-testapp
+workflows:
+  _setup:
+    steps:
+    - git-clone@6:
+        inputs:
+        - clone_depth: '1'
+    - script@1:
+        title: JDK 11
+        inputs:
+        - content: "sudo update-alternatives --set javac /usr/lib/jvm/java-11-openjdk-amd64/bin/javac\nsudo
+            update-alternatives --set java /usr/lib/jvm/java-11-openjdk-amd64/bin/java\n
+            \  \nexport JAVA_HOME='/usr/lib/jvm/java-11-openjdk-amd64'\nenvman add
+            --key JAVA_HOME --value '/usr/lib/jvm/java-11-openjdk-amd64'"
+    - script@1:
+        title: Set $JAVA_TOOLS_JAR
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            # fail if any commands fails
+            set -e
+            # debug log
+            set -x
+
+            envman add --key JAVA_TOOLS_JAR --value /usr/lib/jvm/java-1.8.0-openjdk-amd64/lib/tools.jar
+  _preboot_emulator:
+    steps:
+    - avd-manager@1: {}
+  ftl-room-testapp:
+    steps:
+    - script@1:
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            # fail if any commands fails
+            set -e
+            # debug log
+            set -x
+
+            PROJECT=room
+
+            cd $PROJECT
+
+            ./gradlew :room:integration-tests:room-testapp:assembleDebug :room:integration-tests:room-testapp:assembleDebugAndroidTest
+
+            envman add --key BITRISE_APK_PATH --value "/bitrise/src/out/$PROJECT-playground/dist/apks/room-integration-tests-room-testapp_room-testapp-debug.apk"
+
+            envman add --key BITRISE_TEST_APK_PATH --value "/bitrise/src/out/$PROJECT-playground/dist/apks/room-integration-tests-room-testapp_room-testapp-debug-androidTest.apk"
+        title: Build room-testapp for UI testing
+    - virtual-device-testing-for-android@1:
+        inputs:
+        - test_type: instrumentation
+    - deploy-to-bitrise-io@1:
+        inputs:
+        - notify_user_groups: none
+    before_run:
+    - _setup
+  emulator-all:
+    steps:
+    - script@1:
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            # fail if any commands fails
+            set -e
+            # debug log
+            set -x
+
+
+            # This is needed more matching deeply nested subdirectories of test results
+            shopt -s globstar
+        title: Enable globstar
+    - wait-for-android-emulator@1: {}
+    - script@1:
+        inputs:
+        - content: |+
+            #!/usr/bin/env bash
+            # fail if any commands fails
+            set -e
+            # debug log
+            set -x
+
+            PROJECT=paging
+
+            cd $PROJECT
+
+            ./gradlew connectedAndroidTest
+
+            cd ../out/$PROJECT-playground/$PROJECT-playground/
+
+            zip -r $BITRISE_DEPLOY_DIR/androidTests-$PROJECT.zip . -i **/build/reports/androidTests/connected/*
+
+        title: Paging
+        is_always_run: true
+    - script@1:
+        inputs:
+        - content: |+
+            #!/usr/bin/env bash
+            # fail if any commands fails
+            set -e
+            # debug log
+            set -x
+
+            PROJECT=work
+
+            cd $PROJECT
+
+            ./gradlew connectedAndroidTest --exclude-task :work:work-benchmark:connectedDebugAndroidTest
+
+            cd ../out/$PROJECT-playground/$PROJECT-playground/
+
+            zip -r $BITRISE_DEPLOY_DIR/androidTests-$PROJECT.zip . -i **/build/reports/androidTests/connected/*
+
+        title: Work
+        is_always_run: true
+    - script@1:
+        inputs:
+        - content: |+
+            #!/usr/bin/env bash
+            # fail if any commands fails
+            set -e
+            # debug log
+            set -x
+
+            PROJECT=lifecycle
+
+            cd $PROJECT
+
+            ./gradlew connectedAndroidTest
+
+            # cd ../out/$PROJECT-playground/$PROJECT-playground/
+
+            # zip -r $BITRISE_DEPLOY_DIR/androidTests-$PROJECT.zip . -i **/build/reports/androidTests/connected/*
+
+        title: Lifecycle
+        is_always_run: true
+    - script@1:
+        inputs:
+        - content: |+
+            #!/usr/bin/env bash
+            # fail if any commands fails
+            set -e
+            # debug log
+            set -x
+
+            PROJECT=fragment
+
+            cd $PROJECT
+
+            ./gradlew connectedAndroidTest --exclude-task :fragment:fragment:connectedDebugAndroidTest
+
+            cd ../out/$PROJECT-playground/$PROJECT-playground/
+
+            zip -r $BITRISE_DEPLOY_DIR/androidTests-$PROJECT.zip . -i **/build/reports/androidTests/connected/*
+
+        title: Fragment
+        is_always_run: true
+    - script@1:
+        inputs:
+        - content: |
+            #!/usr/bin/env bash
+            # fail if any commands fails
+            set -e
+            # debug log
+            set -x
+
+            PROJECT=navigation
+
+            cd $PROJECT
+
+            ./gradlew connectedAndroidTest --exclude-task :navigation:navigation-benchmark:connectedDebugAndroidTest
+
+            cd ../out/$PROJECT-playground/$PROJECT-playground/
+
+            zip -r $BITRISE_DEPLOY_DIR/androidTests-$PROJECT.zip . -i **/build/reports/androidTests/connected/*
+        title: Navigation
+        is_always_run: true
+    - script@1:
+        inputs:
+        - content: |+
+            #!/usr/bin/env bash
+            # fail if any commands fails
+            set -e
+            # debug log
+            set -x
+
+            PROJECT=activity
+
+            cd $PROJECT
+
+            ./gradlew connectedAndroidTest --exclude-task :activity:activity:connectedDebugAndroidTest
+
+            cd ../out/$PROJECT-playground/$PROJECT-playground/
+
+            zip -r $BITRISE_DEPLOY_DIR/androidTests-$PROJECT.zip . -i **/build/reports/androidTests/connected/*
+
+        title: Activity
+        is_always_run: true
+    - script@1:
+        inputs:
+        - content: |+
+            #!/usr/bin/env bash
+            # fail if any commands fails
+            set -e
+            # debug log
+            set -x
+
+            PROJECT=room
+
+            cd $PROJECT
+
+            ./gradlew connectedAndroidTest --exclude-task :room:room-benchmark:connectedDebugAndroidTest
+
+            cd ../out/$PROJECT-playground/$PROJECT-playground/
+
+            zip -r $BITRISE_DEPLOY_DIR/androidTests-$PROJECT.zip . -i **/build/reports/androidTests/connected/*
+
+        title: Room
+        is_always_run: true
+    - deploy-to-bitrise-io@1: {}
+    before_run:
+    - _preboot_emulator
+    - _setup
+  primary:
+    steps:
+    - wait-for-android-emulator@1: {}
+    - script@1:
+        inputs:
+        - content: |+
+            #!/usr/bin/env bash
+            # fail if any commands fails
+            set -e
+            # debug log
+            set -x
+
+            PROJECT=paging
+
+            cd $PROJECT
+
+            ./gradlew connectedAndroidTest --continue
+
+            cd ../out/$PROJECT-playground/$PROJECT-playground/
+
+            zip -r $BITRISE_DEPLOY_DIR/androidTests-$PROJECT.zip . -i **/build/reports/androidTests/connected/*
+
+        title: Paging
+        is_always_run: true
+    - script@1:
+        inputs:
+        - content: |+
+            #!/usr/bin/env bash
+            # fail if any commands fails
+            set -e
+            # debug log
+            set -x
+
+            PROJECT=work
+
+            cd $PROJECT
+
+            ./gradlew connectedAndroidTest --continue --exclude-task :work:work-benchmark:connectedDebugAndroidTest
+
+            cd ../out/$PROJECT-playground/$PROJECT-playground/
+
+            zip -r $BITRISE_DEPLOY_DIR/androidTests-$PROJECT.zip . -i **/build/reports/androidTests/connected/*
+
+        title: Work
+        is_always_run: true
+    - script@1:
+        inputs:
+        - content: |+
+            #!/usr/bin/env bash
+            # fail if any commands fails
+            set -e
+            # debug log
+            set -x
+
+            PROJECT=lifecycle
+
+            cd $PROJECT
+
+            ./gradlew connectedAndroidTest --continue
+
+            # cd ../out/$PROJECT-playground/$PROJECT-playground/
+
+            # zip -r $BITRISE_DEPLOY_DIR/androidTests-$PROJECT.zip . -i **/build/reports/androidTests/connected/*
+
+        title: Lifecycle
+        is_always_run: true
+    - script@1:
+        inputs:
+        - content: |+
+            #!/usr/bin/env bash
+            # fail if any commands fails
+            set -e
+            # debug log
+            set -x
+
+            PROJECT=fragment
+
+            cd $PROJECT
+
+            ./gradlew connectedAndroidTest --continue --exclude-task :fragment:fragment:connectedDebugAndroidTest
+
+            cd ../out/$PROJECT-playground/$PROJECT-playground/
+
+            zip -r $BITRISE_DEPLOY_DIR/androidTests-$PROJECT.zip . -i **/build/reports/androidTests/connected/*
+
+        title: Fragment
+        is_always_run: true
+    - script@1:
+        inputs:
+        - content: |
+            #!/usr/bin/env bash
+            # fail if any commands fails
+            set -e
+            # debug log
+            set -x
+
+            PROJECT=navigation
+
+            cd $PROJECT
+
+            ./gradlew connectedAndroidTest --continue --exclude-task :navigation:navigation-benchmark:connectedDebugAndroidTest
+
+            cd ../out/$PROJECT-playground/$PROJECT-playground/
+
+            zip -r $BITRISE_DEPLOY_DIR/androidTests-$PROJECT.zip . -i **/build/reports/androidTests/connected/*
+        title: Navigation
+        is_always_run: true
+    - script@1:
+        inputs:
+        - content: |+
+            #!/usr/bin/env bash
+            # fail if any commands fails
+            set -e
+            # debug log
+            set -x
+
+            PROJECT=activity
+
+            cd $PROJECT
+
+            ./gradlew connectedAndroidTest --continue --exclude-task :activity:activity:connectedDebugAndroidTest
+
+            cd ../out/$PROJECT-playground/$PROJECT-playground/
+
+            zip -r $BITRISE_DEPLOY_DIR/androidTests-$PROJECT.zip . -i **/build/reports/androidTests/connected/*
+
+        title: Activity
+        is_always_run: true
+    - script@1:
+        inputs:
+        - content: |+
+            #!/usr/bin/env bash
+            # fail if any commands fails
+            set -e
+            # debug log
+            set -x
+
+            PROJECT=room
+
+            cd $PROJECT
+
+            ./gradlew connectedAndroidTest --continue --exclude-task :room:room-benchmark:connectedDebugAndroidTest
+
+            cd ../out/$PROJECT-playground/$PROJECT-playground/
+
+            zip -r $BITRISE_DEPLOY_DIR/androidTests-$PROJECT.zip . -i **/build/reports/androidTests/connected/*
+
+        title: Room
+        is_always_run: true
+    - deploy-to-bitrise-io@1: {}
+    before_run:
+    - _preboot_emulator
+    - _setup-mac
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.5.x
+        machine_type_id: elite
+  _setup-mac:
+    steps:
+    - git-clone@6:
+        inputs:
+        - clone_depth: '1'
+    - script@1:
+        title: JDK 11
+        inputs:
+        - content: |-
+            jenv global 11
+            export JAVA_HOME="$(jenv prefix)"
+            envman add --key JAVA_HOME --value "$(jenv prefix)"
+    - script@1:
+        title: Set $JAVA_TOOLS_JAR
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            # fail if any commands fails
+            set -e
+            # debug log
+            set -x
+
+            envman add --key JAVA_TOOLS_JAR --value /Users/vagrant/.jenv/versions/1.8/lib/tools.jar
+  ftl-mac-room-testapp:
+    steps:
+    - script@1:
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            # fail if any commands fails
+            set -e
+            # debug log
+            set -x
+
+            PROJECT=room
+
+            cd $PROJECT
+
+            ./gradlew :room:integration-tests:room-testapp:assembleDebug :room:integration-tests:room-testapp:assembleDebugAndroidTest
+
+            envman add --key BITRISE_APK_PATH --value "$PROJECT_LOCATION/out/$PROJECT-playground/dist/apks/room-integration-tests-room-testapp_room-testapp-debug.apk"
+
+            envman add --key BITRISE_TEST_APK_PATH --value "$PROJECT_LOCATION/out/$PROJECT-playground/dist/apks/room-integration-tests-room-testapp_room-testapp-debug-androidTest.apk"
+        title: Build room-testapp for UI testing
+    - virtual-device-testing-for-android@1:
+        inputs:
+        - test_type: instrumentation
+    - deploy-to-bitrise-io@1:
+        inputs:
+        - notify_user_groups: none
+    before_run:
+    - _setup-mac
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.5.x
+        machine_type_id: elite
+  gen2_elitexl_xcode_11_7:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-11.7.x
+        machine_type_id: g2.12core
+  gen2_elitexl_xcode_12_0:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.0.x
+        machine_type_id: g2.12core
+  gen2_elitexl_xcode_12_1:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.1.x
+        machine_type_id: g2.12core
+  gen2_elitexl_xcode_12_2:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.2.x
+        machine_type_id: g2.12core
+  gen2_elitexl_xcode_12_3:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.3.x
+        machine_type_id: g2.12core
+  gen2_elitexl_xcode_12_4:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.4.x
+        machine_type_id: g2.12core
+  gen2_elitexl_xcode_12_5:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.5.x
+        machine_type_id: g2.12core
+  gen2_elitexl_xcode_13_0:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-13.0.x
+        machine_type_id: g2.12core
+  gen2_elite_xcode_11_7:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-11.7.x
+        machine_type_id: g2.8core
+  gen2_elite_xcode_12_0:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.0.x
+        machine_type_id: g2.8core
+  gen2_elite_xcode_12_1:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.1.x
+        machine_type_id: g2.8core
+  gen2_elite_xcode_12_2:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.2.x
+        machine_type_id: g2.8core
+  gen2_elite_xcode_12_3:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.3.x
+        machine_type_id: g2.8core
+  gen2_elite_xcode_12_4:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.4.x
+        machine_type_id: g2.8core
+  gen2_elite_xcode_12_5:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.5.x
+        machine_type_id: g2.8core
+  gen2_elite_xcode_13_0:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-13.0.x
+        machine_type_id: g2.8core
+  gen2_standard_xcode_11_7:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-11.7.x
+        machine_type_id: g2.4core
+  gen2_standard_xcode_12_0:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.0.x
+        machine_type_id: g2.4core
+  gen2_standard_xcode_12_1:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.1.x
+        machine_type_id: g2.4core
+  gen2_standard_xcode_12_2:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.2.x
+        machine_type_id: g2.4core
+  gen2_standard_xcode_12_3:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.3.x
+        machine_type_id: g2.4core
+  gen2_standard_xcode_12_4:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.4.x
+        machine_type_id: g2.4core
+  gen2_standard_xcode_12_5:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.5.x
+        machine_type_id: g2.4core
+  gen2_standard_xcode_13_0:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-13.0.x
+        machine_type_id: g2.4core
+  gen1_elite_xcode_11_7:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-11.7.x
+        machine_type_id: elite
+  gen1_elite_xcode_12_0:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.0.x
+        machine_type_id: elite
+  gen1_elite_xcode_12_1:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.1.x
+        machine_type_id: elite
+  gen1_elite_xcode_12_2:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.2.x
+        machine_type_id: elite
+  gen1_elite_xcode_12_3:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.3.x
+        machine_type_id: elite
+  gen1_elite_xcode_12_4:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.4.x
+        machine_type_id: elite
+  gen1_elite_xcode_12_5:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.5.x
+        machine_type_id: elite
+  gen1_elite_xcode_13_0:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-13.0.x
+        machine_type_id: elite
+  gen1_standard_xcode_11_7:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-11.7.x
+        machine_type_id: standard
+  gen1_standard_xcode_12_0:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.0.x
+        machine_type_id: standard
+  gen1_standard_xcode_12_1:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.1.x
+        machine_type_id: standard
+  gen1_standard_xcode_12_2:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.2.x
+        machine_type_id: standard
+  gen1_standard_xcode_12_3:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.3.x
+        machine_type_id: standard
+  gen1_standard_xcode_12_4:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.4.x
+        machine_type_id: standard
+  gen1_standard_xcode_12_5:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-12.5.x
+        machine_type_id: standard
+  gen1_standard_xcode_13_0:
+    before_run:
+    - primary
+    meta:
+      bitrise.io:
+        stack: osx-xcode-13.0.x
+        machine_type_id: standard
+app:
+  envs:
+  - opts:
+      is_expand: false
+    PROJECT_LOCATION: "."
+  - opts:
+      is_expand: false
+    MODULE: app
+  - opts:
+      is_expand: false
+    VARIANT: ''
+meta:
+  bitrise.io:
+    machine_type_id: elite
