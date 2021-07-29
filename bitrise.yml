@@ -33,6 +33,19 @@ workflows:
             envman add --key JAVA_TOOLS_JAR --value /usr/lib/jvm/java-1.8.0-openjdk-amd64/lib/tools.jar
   _preboot_emulator:
     steps:
+    - script@1:
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            # fail if any commands fails
+            set -e
+            # debug log
+            set -x
+            echo $ANDROID_HOME
+            echo $ANDROID_SDK_ROOT
+            printenv
+            envman add --key ANDROID_HOME --value '/usr/local/share/android-sdk'
+            envman add --key ANDROID_SDK_ROOT --value '/usr/local/share/android-sdk'
     - avd-manager@1: {}
   ftl-room-testapp:
     steps:
@@ -722,6 +735,9 @@ workflows:
       bitrise.io:
         stack: osx-xcode-13.0.x
         machine_type_id: standard
+  emulator:
+    before_run:
+    - primary
 app:
   envs:
   - opts:
